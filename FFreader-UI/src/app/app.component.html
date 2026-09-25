@@ -1,0 +1,45 @@
+<mat-toolbar color="primary">
+  <mat-icon class="toolbar-icon">auto_stories</mat-icon>
+  <span>FFreader</span>
+</mat-toolbar>
+
+<div class="page-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Add a fanfic</mat-card-title>
+      <mat-card-subtitle>Paste a fanfiction.net story link to queue it for parsing</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <form class="url-form" (ngSubmit)="submitUrl()">
+        <mat-form-field appearance="outline" class="url-field">
+          <mat-label>fanfiction.net story URL</mat-label>
+          <input matInput name="url" [(ngModel)]="urlInput"
+                 placeholder="https://www.fanfiction.net/s/14585136/1/For-Her"
+                 [disabled]="submitting" required>
+        </mat-form-field>
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting || !urlInput.trim()">
+          <mat-icon *ngIf="!submitting">add</mat-icon>
+          {{ submitting ? 'Queuing…' : 'Add fanfic' }}
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Loaded fanfics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <app-fanfic-table
+        [fanfics]="fanfics"
+        [totalElements]="totalElements"
+        [pageIndex]="pageIndex"
+        [pageSize]="pageSize"
+        [loading]="loadingList"
+        (pageChange)="onPageChange($event)"
+        (download)="onDownload($event)"
+        (deleteFanfic)="onDelete($event)">
+      </app-fanfic-table>
+    </mat-card-content>
+  </mat-card>
+</div>
