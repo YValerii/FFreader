@@ -58,10 +58,13 @@ public class FanficScraperService {
         try {
             driver.get(url);
             new WebDriverWait(driver, Duration.ofSeconds(20))
-                    .until(ExpectedConditions.presenceOfElementLocated(By.id("storytext")));
+                    .until(ExpectedConditions.presenceOfElementLocated(By.id("storytextp")));
         } catch (Exception e) {
-            throw new FanficScrapeException("Failed to load page: " + url, e);
+            // Log the timeout/error but don't throw an exception
+            log.warn("Could not find '#storytextp' within 20 seconds for {}. Returning whatever page source loaded.", url);
         }
+
+        // This will now return the HTML of the current page (e.g., Cloudflare check, 404 page, etc.)
         return Jsoup.parse(driver.getPageSource());
     }
 }

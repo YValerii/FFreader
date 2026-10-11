@@ -39,6 +39,7 @@ public class Fanfic {
     private String characters;
 
     private Integer chaptersCount;
+    private Integer loadedChaptersCount;
     private Integer words;
     private Integer reviews;
     private Integer favs;

@@ -27,7 +27,7 @@
 
     <ng-container matColumnDef="chapters">
       <th mat-header-cell *matHeaderCellDef>Chapters</th>
-      <td mat-cell *matCellDef="let f">{{ f.chaptersCount ?? '—' }}</td>
+      <td mat-cell *matCellDef="let f">{{ f.loadedChaptersCount ?? '—' }}/{{ f.chaptersCount ?? '—' }}</td>
     </ng-container>
 
     <ng-container matColumnDef="words">

@@ -92,7 +92,7 @@ public class FanficPageParser {
     /** Reads the chapter dropdown (if present) to double check the chapter count. */
     public int parseChapterCountFromSelect(Document doc, int fallback) {
         Elements options = doc.select("#chap_select option");
-        return options.isEmpty() ? fallback : options.size();
+        return options.isEmpty() ? fallback : options.size()/2;
     }
 
     /** Extracts the raw HTML of the story body for the currently loaded chapter. */

@@ -39,7 +39,6 @@ public class FanficService {
         this.parsingService = parsingService;
     }
 
-    @Transactional
     public Fanfic create(CreateFanficRequest request) {
         FanficUrl parsed = FanficUrl.parse(request.url());
 
@@ -92,7 +91,7 @@ public class FanficService {
     @Transactional(readOnly = true)
     public Path getPdfPath(UUID id) {
         Fanfic fanfic = get(id);
-        if (fanfic.getStatus() != FanficStatus.PARSED || fanfic.getPdfPath() == null) {
+        if ((fanfic.getStatus() != FanficStatus.PARSED && fanfic.getStatus() != FanficStatus.PARSED_PARTIALLY) || fanfic.getPdfPath() == null) {
             throw new PdfNotReadyException(id);
         }
         Path path = Path.of(fanfic.getPdfPath());

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -60,23 +61,22 @@ public class FanficParsingService {
         }
 
         markStatus(fanfic, FanficStatus.PARSING, null);
-        WebDriver driver = null;
+        List<Chapter> chapters = new ArrayList<>();
+        int chapterCount = 0;
         try {
-            driver = webDriverFactory.newDriver();
             FanficUrl url = FanficUrl.parse(fanfic.getSourceUrl());
 
             // Step 1: story metadata (rating, description, chapter count, etc.)
-            ScrapedFanficInfo info = scraperService.fetchInfo(driver, url);
+            ScrapedFanficInfo info = scraperService.fetchInfo(webDriverFactory.newDriver(), url);
             applyInfo(fanfic, info);
             fanfic = fanficRepository.save(fanfic);
 
             // Step 2: walk every chapter, saving each to a temp extraction file + DB row
             UUID extractionRunId = UUID.randomUUID();
-            int chapterCount = info.chaptersCount() != null ? info.chaptersCount() : 1;
-            List<Chapter> chapters = new ArrayList<>();
+            chapterCount = info.chaptersCount() != null ? info.chaptersCount() : 1;
 
             for (int chapterNumber = 1; chapterNumber <= chapterCount; chapterNumber++) {
-                ScrapedChapter scraped = scraperService.fetchChapterContent(driver, url, chapterNumber);
+                ScrapedChapter scraped = scraperService.fetchChapterContent(webDriverFactory.newDriver(), url, chapterNumber);
 
                 String fileName = extractionFileService.writeChapter(
                         extractionRunId, info.title(), chapterNumber, scraped.rawHtml());
@@ -89,19 +89,17 @@ public class FanficParsingService {
                 chapters.add(chapterRepository.save(chapter));
             }
 
-            // Step 3: turn the extracted chapters into one clean, readable PDF
-            String pdfPath = pdfGeneratorService.generate(fanfic, chapters);
-            fanfic.setPdfPath(pdfPath);
-            markStatus(fanfic, FanficStatus.PARSED, null);
 
             log.info("Successfully parsed fanfic {} ({} chapters)", fanfic.getExternalId(), chapterCount);
         } catch (Exception e) {
             log.error("Failed to parse fanfic {}", fanficId, e);
             markStatus(fanfic, FanficStatus.FAILED, e.getMessage());
         } finally {
-            if (driver != null) {
-                driver.quit();
-            }
+            // Step 3: turn the extracted chapters into one clean, readable PDF
+            String pdfPath = pdfGeneratorService.generate(fanfic, chapters);
+            fanfic.setPdfPath(pdfPath);
+            fanfic.setLoadedChaptersCount(chapters.size());
+            markStatus(fanfic, chapterCount == chapters.size()? FanficStatus.PARSED: FanficStatus.PARSED_PARTIALLY, null);
         }
     }
 

@@ -7,6 +7,8 @@ public enum FanficStatus {
     PARSING,
     /** All chapters fetched and PDF generated successfully. */
     PARSED,
+    /** Partially parsed. */
+    PARSED_PARTIALLY,
     /** Something went wrong; see errorMessage. */
     FAILED
 }

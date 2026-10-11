@@ -17,6 +17,7 @@ public record FanficResponse(
         String genre,
         String characters,
         Integer chaptersCount,
+        Integer loadedChaptersCount,
         Integer words,
         Integer reviews,
         Integer favs,
@@ -40,6 +41,7 @@ public record FanficResponse(
                 f.getGenre(),
                 f.getCharacters(),
                 f.getChaptersCount(),
+                f.getLoadedChaptersCount(),
                 f.getWords(),
                 f.getReviews(),
                 f.getFavs(),
@@ -47,7 +49,7 @@ public record FanficResponse(
                 f.getPublishedAt(),
                 f.getStatus(),
                 f.getErrorMessage(),
-                f.getStatus() == FanficStatus.PARSED && f.getPdfPath() != null,
+                (f.getStatus() == FanficStatus.PARSED || f.getStatus() == FanficStatus.PARSED_PARTIALLY) && f.getPdfPath() != null,
                 f.getCreatedAt(),
                 f.getUpdatedAt()
         );

@@ -58,7 +58,7 @@ public class PdfGeneratorService {
      * @return the absolute path of the generated PDF file
      */
     public String generate(Fanfic fanfic, List<Chapter> chapters) {
-        Path outputPath = pdfDir.resolve(fanfic.getId() + ".pdf");
+        Path outputPath = pdfDir.resolve("%s %s.pdf".formatted(fanfic.getTitle(), fanfic.getId()));
         try (PDDocument document = new PDDocument()) {
             PDFont regularFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
             PDFont boldFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);

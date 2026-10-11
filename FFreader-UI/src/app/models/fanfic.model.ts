@@ -1,4 +1,4 @@
-export type FanficStatus = 'PENDING' | 'PARSING' | 'PARSED' | 'FAILED';
+export type FanficStatus = 'PENDING' | 'PARSING' | 'PARSED_PARTIALLY' | 'PARSED' | 'FAILED';
 
 export interface Fanfic {
   id: string;
@@ -11,6 +11,7 @@ export interface Fanfic {
   genre: string | null;
   characters: string | null;
   chaptersCount: number | null;
+  loadedChaptersCount: number | null;
   words: number | null;
   reviews: number | null;
   favs: number | null;

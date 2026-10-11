@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <selenium.version>4.24.0</selenium.version>
+        <selenium.version>4.50.0</selenium.version>
         <webdrivermanager.version>5.9.2</webdrivermanager.version>
         <jsoup.version>1.18.1</jsoup.version>
         <pdfbox.version>3.0.3</pdfbox.version>
