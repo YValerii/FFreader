@@ -1,0 +1,24 @@
+<form class="add-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="add-form__field">
+    <mat-label>Story link</mat-label>
+    <mat-icon matPrefix aria-hidden="true">link</mat-icon>
+    <input matInput type="url" formControlName="url" inputmode="url" autocomplete="off"
+           placeholder="https://www.fanfiction.net/s/14585136/1/For-Her">
+    @if (url.hasError('storyUrl')) {
+      <mat-error>Enter a fanfiction.net story link, like https://www.fanfiction.net/s/14585136</mat-error>
+    } @else if (url.hasError('server')) {
+      <mat-error>{{ serverError() }}</mat-error>
+    }
+  </mat-form-field>
+
+  <button matButton="filled" type="submit" class="add-form__submit"
+          [disabled]="submitting() || !urlValue().trim()">
+    @if (submitting()) {
+      <mat-spinner matButtonIcon diameter="18" aria-hidden="true" />
+      Adding…
+    } @else {
+      <mat-icon aria-hidden="true">add</mat-icon>
+      Add story
+    }
+  </button>
+</form>

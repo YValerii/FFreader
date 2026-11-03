@@ -1,0 +1,52 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px 0 7px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  .mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.badge--pending {
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.badge--parsing {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+
+  .mat-icon {
+    animation: spin 1.4s linear infinite;
+  }
+}
+
+.badge--parsed {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+.badge--parsed_partially {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
+.badge--failed {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}

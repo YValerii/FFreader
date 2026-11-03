@@ -1,47 +1,34 @@
-<mat-toolbar color="primary">
-  <mat-icon class="toolbar-icon">auto_stories</mat-icon>
-  <span>FFreader</span>
-</mat-toolbar>
+<header class="app-bar">
+  <div class="app-bar__inner">
+    <div class="brand">
+      <span class="brand__mark"><mat-icon aria-hidden="true">auto_stories</mat-icon></span>
+      <span class="brand__name">FFreader</span>
+    </div>
+    <button matIconButton type="button"
+            [matTooltip]="nextThemeLabel()"
+            [attr.aria-label]="nextThemeLabel()"
+            (click)="toggleTheme()">
+      <mat-icon aria-hidden="true">{{ themeIcon() }}</mat-icon>
+    </button>
+  </div>
+</header>
 
-<div class="page-container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Add a fanfic</mat-card-title>
-      <mat-card-subtitle>Paste a fanfiction.net story link to queue it for parsing</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <form class="url-form" (ngSubmit)="submitUrl()">
-        <mat-form-field appearance="outline" class="url-field">
-          <mat-label>fanfiction.net story URL</mat-label>
-          <input matInput name="url" [(ngModel)]="urlInput"
-                 placeholder="https://www.fanfiction.net/s/14585136/1/For-Her"
-                 [disabled]="submitting" required>
-        </mat-form-field>
-        <button mat-raised-button color="primary" type="submit" [disabled]="submitting || !urlInput.trim()">
-          @if (!submitting) {
-            <mat-icon>add</mat-icon>
-          }
-          {{ submitting ? 'Queuing…' : 'Add fanfic' }}
-        </button>
-      </form>
-    </mat-card-content>
-  </mat-card>
+<main class="page">
+  <section class="intro">
+    <h1>Your library</h1>
+    <p>Paste a fanfiction.net link and get the whole story as one clean, readable PDF.</p>
+    <app-add-fanfic-form />
+  </section>
 
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Loaded fanfics</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <app-fanfic-table
-        [fanfics]="fanfics"
-        [totalElements]="totalElements"
-        [pageIndex]="pageIndex"
-        [pageSize]="pageSize"
-        [loading]="loadingList"
-        (pageChange)="onPageChange($event)"
-        (download)="onDownload($event)"
-        (deleteFanfic)="onDelete($event)">
-      </app-fanfic-table>
-    </mat-card-content>
-  </mat-card>
-</div>
+  <app-fanfic-list
+    [fanfics]="store.fanfics()"
+    [totalElements]="store.totalElements()"
+    [pageIndex]="store.pageIndex()"
+    [pageSize]="store.pageSize()"
+    [loading]="store.loading()"
+    [failed]="store.failed()"
+    (pageChange)="onPageChange($event)"
+    (retry)="store.refresh()"
+    (download)="onDownload($event)"
+    (delete)="onDelete($event)" />
+</main>

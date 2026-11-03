@@ -1,0 +1,60 @@
+<section aria-labelledby="stories-heading" [attr.aria-busy]="loading()">
+  <div class="list-header">
+    <h2 id="stories-heading">Stories</h2>
+    @if (totalElements() > 0) {
+      <span class="list-header__count">{{ countLabel() }}</span>
+    }
+  </div>
+
+  @if (failed()) {
+    <div class="message" role="alert">
+      <span class="message__icon message__icon--error"><mat-icon aria-hidden="true">cloud_off</mat-icon></span>
+      <h3>Could not load your stories</h3>
+      <p>Check that the API is running, then try again.</p>
+      <button matButton="tonal" type="button" (click)="retry.emit()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        Try again
+      </button>
+    </div>
+  } @else if (fanfics().length > 0) {
+    <div class="list-progress">
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Loading stories" />
+      }
+    </div>
+
+    <ul class="list">
+      @for (fanfic of fanfics(); track fanfic.id) {
+        <li>
+          <app-fanfic-card [fanfic]="fanfic" (download)="download.emit(fanfic)" (delete)="delete.emit(fanfic)" />
+        </li>
+      }
+    </ul>
+
+    @if (totalElements() > pageSizeOptions[0]) {
+      <mat-paginator
+        aria-label="Choose a page of stories"
+        [length]="totalElements()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        (page)="pageChange.emit($event)" />
+    }
+  } @else if (loading()) {
+    <div class="list" aria-hidden="true">
+      @for (skeleton of skeletons; track skeleton) {
+        <div class="skeleton">
+          <div class="skeleton__line skeleton__line--title"></div>
+          <div class="skeleton__line skeleton__line--short"></div>
+          <div class="skeleton__line"></div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="message">
+      <span class="message__icon"><mat-icon aria-hidden="true">auto_stories</mat-icon></span>
+      <h3>Your library is empty</h3>
+      <p>Add your first story with the link field above.</p>
+    </div>
+  }
+</section>

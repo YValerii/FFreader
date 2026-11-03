@@ -5,11 +5,23 @@
   <title>FFreader</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Turn fanfiction.net stories into clean, readable PDFs.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d4bd8'/%3E%3Cpath d='M9 8h6a2 2 0 0 1 1 .3A2 2 0 0 1 17 8h6v15h-6a2 2 0 0 0-1 .3 2 2 0 0 0-1-.3H9z' fill='%23fff'/%3E%3C/svg%3E">
+  <script>
+    // Applied before the first paint so a saved theme never flashes the other one.
+    try {
+      var theme = localStorage.getItem('ffreader-theme');
+      if (theme === 'light' || theme === 'dark') {
+        document.documentElement.dataset.theme = theme;
+      }
+    } catch (e) {}
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block" rel="stylesheet">
 </head>
-<body class="mat-typography">
+<body>
   <app-root></app-root>
 </body>
 </html>

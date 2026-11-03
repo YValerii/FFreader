@@ -1,0 +1,112 @@
+.list-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+.list-header__count {
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Keeps its height so the list doesn't jump when the bar appears.
+.list-progress {
+  height: 4px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+mat-paginator {
+  margin-top: 8px;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 24px;
+  border: 1px dashed var(--mat-sys-outline-variant);
+  border-radius: 16px;
+  text-align: center;
+
+  h3 {
+    margin: 16px 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  button {
+    margin-top: 16px;
+  }
+}
+
+.message__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.message__icon--error {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.skeleton {
+  padding: 20px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.skeleton__line {
+  height: 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+  background: var(--mat-sys-surface-container-highest);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton__line--title {
+  width: 45%;
+  height: 18px;
+  margin-top: 0;
+}
+
+.skeleton__line--short {
+  width: 30%;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}

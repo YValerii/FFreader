@@ -1,0 +1,67 @@
+@let story = fanfic();
+
+<article class="card">
+  <div class="card__body">
+    <div class="card__heading">
+      <h3 class="card__title">
+        <a [href]="story.sourceUrl" target="_blank" rel="noopener noreferrer">{{ story.title || story.sourceUrl }}</a>
+      </h3>
+      <app-status-badge [status]="story.status" />
+    </div>
+
+    @if (tags(); as text) {
+      <p class="card__tags">{{ text }}</p>
+    }
+    @if (story.characters) {
+      <p class="card__tags">{{ story.characters }}</p>
+    }
+    @if (story.description) {
+      <p class="card__description">{{ story.description }}</p>
+    }
+    @if (!story.title && story.status === 'PENDING') {
+      <p class="card__description">Waiting for a free worker…</p>
+    }
+    @if (!story.title && story.status === 'PARSING') {
+      <p class="card__description">Fetching story details…</p>
+    }
+
+    @if (story.errorMessage) {
+      <p class="card__error" role="status">
+        <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <span>{{ story.errorMessage }}</span>
+      </p>
+    }
+
+    <div class="card__footer">
+      <ul class="card__stats">
+        @if (chapters(); as text) {
+          <li><mat-icon aria-hidden="true">menu_book</mat-icon>{{ text }}</li>
+        }
+        @if (story.words != null) {
+          <li><mat-icon aria-hidden="true">notes</mat-icon>{{ story.words | number }} words</li>
+        }
+        @if (story.publishedAt) {
+          <li><mat-icon aria-hidden="true">event</mat-icon>{{ story.publishedAt | date: 'mediumDate' }}</li>
+        }
+      </ul>
+
+      <div class="card__actions">
+        <span [matTooltip]="downloadHint()">
+          <button matButton="tonal" type="button" [disabled]="!story.downloadReady" (click)="download.emit()">
+            <mat-icon aria-hidden="true">download</mat-icon>
+            PDF
+          </button>
+        </span>
+        <button matIconButton type="button" class="card__delete"
+                matTooltip="Delete story" aria-label="Delete story"
+                (click)="delete.emit()">
+          <mat-icon aria-hidden="true">delete_outline</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (story.status === 'PARSING') {
+    <mat-progress-bar class="card__progress" mode="indeterminate" aria-label="Parsing story" />
+  }
+</article>

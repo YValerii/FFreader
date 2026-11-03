@@ -1,101 +1,48 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
-import { finalize } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { filter, switchMap } from 'rxjs';
 
-import { FanficService } from './services/fanfic.service';
+import { AddFanficFormComponent } from './components/add-fanfic-form/add-fanfic-form.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from './components/confirm-dialog/confirm-dialog.component';
+import { FanficListComponent } from './components/fanfic-list/fanfic-list.component';
 import { Fanfic } from './models/fanfic.model';
-import { FanficTableComponent } from './components/fanfic-table/fanfic-table.component';
-
-const ACTIVE_STATUSES = new Set(['PENDING', 'PARSING']);
-const POLL_INTERVAL_MS = 4000;
+import { FanficStore } from './services/fanfic-store.service';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatToolbarModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule,
-    MatCardModule,
-    MatSnackBarModule,
-    FanficTableComponent
-  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule, AddFanficFormComponent, FanficListComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent implements OnInit, OnDestroy {
-  urlInput = '';
-  submitting = false;
-  loadingList = false;
+export class AppComponent {
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
+  private readonly themeService = inject(ThemeService);
 
-  fanfics: Fanfic[] = [];
-  totalElements = 0;
-  pageIndex = 0;
-  pageSize = 10;
+  readonly store = inject(FanficStore);
 
-  private pollHandle?: ReturnType<typeof setInterval>;
+  readonly nextThemeLabel = computed(() =>
+    this.themeService.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+  );
+  readonly themeIcon = computed(() => (this.themeService.theme() === 'dark' ? 'light_mode' : 'dark_mode'));
 
-  constructor(private fanficService: FanficService, private snackBar: MatSnackBar) {}
-
-  ngOnInit(): void {
-    this.loadPage();
-    this.pollHandle = setInterval(() => {
-      if (this.fanfics.some((f) => ACTIVE_STATUSES.has(f.status))) {
-        this.loadPage(true);
-      }
-    }, POLL_INTERVAL_MS);
-  }
-
-  ngOnDestroy(): void {
-    if (this.pollHandle) {
-      clearInterval(this.pollHandle);
-    }
-  }
-
-  submitUrl(): void {
-    const url = this.urlInput.trim();
-    if (!url) {
-      return;
-    }
-    this.submitting = true;
-    this.fanficService.create(url)
-      .pipe(finalize(() => (this.submitting = false)))
-      .subscribe({
-        next: () => {
-          this.urlInput = '';
-          this.snackBar.open('Fanfic queued for parsing', 'Dismiss', { duration: 3000 });
-          this.pageIndex = 0;
-          this.loadPage();
-        },
-        error: (err) => {
-          const message = err?.error?.message || 'Could not queue that URL for parsing';
-          this.snackBar.open(message, 'Dismiss', { duration: 5000 });
-        }
-      });
+  toggleTheme(): void {
+    this.themeService.toggle();
   }
 
   onPageChange(event: PageEvent): void {
-    this.pageIndex = event.pageIndex;
-    this.pageSize = event.pageSize;
-    this.loadPage();
+    this.store.setPage(event.pageIndex, event.pageSize);
   }
 
   onDownload(fanfic: Fanfic): void {
-    this.fanficService.download(fanfic.id).subscribe({
+    this.store.download(fanfic.id).subscribe({
       next: (blob) => {
         const link = document.createElement('a');
         const objectUrl = URL.createObjectURL(blob);
@@ -104,39 +51,30 @@ export class AppComponent implements OnInit, OnDestroy {
         link.click();
         URL.revokeObjectURL(objectUrl);
       },
-      error: () => this.snackBar.open('PDF is not ready yet', 'Dismiss', { duration: 3000 })
+      error: () => this.notify('The PDF is not ready yet')
     });
   }
 
   onDelete(fanfic: Fanfic): void {
-    if (!confirm(`Delete "${fanfic.title ?? fanfic.sourceUrl}"?`)) {
-      return;
-    }
-    this.fanficService.delete(fanfic.id).subscribe({
-      next: () => {
-        this.snackBar.open('Fanfic deleted', 'Dismiss', { duration: 3000 });
-        this.loadPage();
-      },
-      error: (err) => this.snackBar.open(err?.error?.message || 'Could not delete fanfic', 'Dismiss', { duration: 5000 })
-    });
+    const data: ConfirmDialogData = {
+      title: 'Delete this story?',
+      message: `“${fanfic.title ?? fanfic.sourceUrl}” and its PDF will be permanently removed.`,
+      confirmLabel: 'Delete'
+    };
+    this.dialog
+      .open(ConfirmDialogComponent, { data, width: '420px', maxWidth: 'calc(100vw - 32px)' })
+      .afterClosed()
+      .pipe(
+        filter((confirmed) => confirmed === true),
+        switchMap(() => this.store.remove(fanfic.id))
+      )
+      .subscribe({
+        next: () => this.notify('Story deleted'),
+        error: (err) => this.notify(err?.error?.message || 'Could not delete the story')
+      });
   }
 
-  private loadPage(silent = false): void {
-    if (!silent) {
-      this.loadingList = true;
-    }
-    this.fanficService.list(this.pageIndex, this.pageSize)
-      .pipe(finalize(() => (this.loadingList = false)))
-      .subscribe({
-        next: (page) => {
-          this.fanfics = page.content;
-          this.totalElements = page.totalElements;
-        },
-        error: () => {
-          if (!silent) {
-            this.snackBar.open('Could not load fanfics', 'Dismiss', { duration: 3000 });
-          }
-        }
-      });
+  private notify(message: string): void {
+    this.snackBar.open(message, 'Dismiss', { duration: 5000 });
   }
 }
