@@ -2,6 +2,7 @@ package com.ffreader.api.service.scraper;
 
 import com.ffreader.api.config.FfreaderProperties;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.springframework.stereotype.Component;
@@ -10,9 +11,9 @@ import java.time.Duration;
 
 /**
  * Creates headless Chrome WebDriver instances configured for scraping.
- * Each parsing job gets its own driver instance so jobs can run fully in
- * parallel on the fanfic-parse-* executor threads; the driver is closed
- * once the job finishes (see FanficScraperService).
+ * Every page load gets its own driver instance so jobs can run fully in
+ * parallel on the fanfic-parse-* executor threads. Callers own the driver and
+ * must quit it (see FanficParsingService#withDriver).
  */
 @Component
 public class WebDriverFactory {
@@ -24,7 +25,7 @@ public class WebDriverFactory {
         WebDriverManager.chromedriver().setup();
     }
 
-    public ChromeDriver newDriver() {
+    public WebDriver newDriver() {
         ChromeOptions options = new ChromeOptions();
         boolean headless = properties.scraper() == null || properties.scraper().headless();
         if (headless) {
@@ -40,7 +41,7 @@ public class WebDriverFactory {
                         "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         );
 
-        ChromeDriver driver = new ChromeDriver(options);
+        WebDriver driver = new ChromeDriver(options);
         int timeoutSeconds = properties.scraper() != null && properties.scraper().pageLoadTimeoutSeconds() > 0
                 ? properties.scraper().pageLoadTimeoutSeconds()
                 : 30;

@@ -20,6 +20,8 @@ import java.util.UUID;
 @Service
 public class ExtractionFileService {
 
+    private static final int MAX_STORY_NAME_LENGTH = 100;
+
     private final Path extractionDir;
 
     public ExtractionFileService(FfreaderProperties properties) {
@@ -76,6 +78,7 @@ public class ExtractionFileService {
         if (name == null || name.isBlank()) {
             return "story";
         }
-        return name.trim().replaceAll("[^a-zA-Z0-9-_]+", "_");
+        String safe = name.trim().replaceAll("[^a-zA-Z0-9-_]+", "_");
+        return safe.length() > MAX_STORY_NAME_LENGTH ? safe.substring(0, MAX_STORY_NAME_LENGTH) : safe;
     }
 }

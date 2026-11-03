@@ -9,12 +9,10 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,6 +35,13 @@ public class PdfGeneratorService {
     private static final float HEADING_SIZE = 15f;
     private static final float BODY_SIZE = 11f;
     private static final float BODY_LEADING = 15f;
+    private static final int MAX_FILE_TITLE_LENGTH = 100;
+    private static final int MAX_FILE_TITLE_BYTES = 200;
+
+    private static final String FONT_REGULAR = "/fonts/DejaVuSans.ttf";
+    private static final String FONT_BOLD = "/fonts/DejaVuSans-Bold.ttf";
+    private static final String FONT_CHINESE_JAPANESE = "/fonts/NotoSansSC-Regular.ttf";
+    private static final String FONT_KOREAN = "/fonts/NotoSansKR-Regular.ttf";
 
     private final HtmlToTextConverter htmlToTextConverter;
     private final Path pdfDir;
@@ -58,12 +63,16 @@ public class PdfGeneratorService {
      * @return the absolute path of the generated PDF file
      */
     public String generate(Fanfic fanfic, List<Chapter> chapters) {
-        Path outputPath = pdfDir.resolve("%s %s.pdf".formatted(fanfic.getTitle(), fanfic.getId()));
+        Path outputPath = pdfDir.resolve("%s %s.pdf".formatted(toFileTitle(fanfic.getTitle()), fanfic.getId()));
         try (PDDocument document = new PDDocument()) {
-            PDFont regularFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-            PDFont boldFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+            PdfFontChain.LazyFont chineseJapanese = new PdfFontChain.LazyFont(document, FONT_CHINESE_JAPANESE);
+            PdfFontChain.LazyFont korean = new PdfFontChain.LazyFont(document, FONT_KOREAN);
+            PdfFontChain regularFont = new PdfFontChain(List.of(
+                    new PdfFontChain.LazyFont(document, FONT_REGULAR), chineseJapanese, korean));
+            PdfFontChain boldFont = new PdfFontChain(List.of(
+                    new PdfFontChain.LazyFont(document, FONT_BOLD), chineseJapanese, korean));
 
-            PageCursor cursor = new PageCursor(document, regularFont, boldFont);
+            PageCursor cursor = new PageCursor(document, regularFont);
             cursor.newPage();
 
             cursor.writeParagraph(fanfic.getTitle(), TITLE_SIZE, boldFont, TITLE_SIZE + 6);
@@ -94,6 +103,35 @@ public class PdfGeneratorService {
         return outputPath.toAbsolutePath().toString();
     }
 
+    /** Story titles can contain characters that aren't allowed in file names, such as ':' on Windows. */
+    private String toFileTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return "story";
+        }
+        // Lone surrogates can't be encoded in a Linux file name.
+        String safe = title.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}\\p{Cs}]+", "_").strip();
+        return truncate(safe).replaceAll("[. ]+$", "");
+    }
+
+    /**
+     * Cuts between whole characters, within the limits of both Windows (255 UTF-16 units)
+     * and Linux (255 bytes), leaving room for the " {uuid}.pdf" suffix.
+     */
+    private String truncate(String text) {
+        StringBuilder result = new StringBuilder();
+        int length = 0;
+        int bytes = 0;
+        for (int codePoint : text.codePoints().toArray()) {
+            length++;
+            bytes += Character.toString(codePoint).getBytes(StandardCharsets.UTF_8).length;
+            if (length > MAX_FILE_TITLE_LENGTH || bytes > MAX_FILE_TITLE_BYTES) {
+                break;
+            }
+            result.appendCodePoint(codePoint);
+        }
+        return result.toString();
+    }
+
     private String buildMetaLine(Fanfic fanfic) {
         List<String> parts = new ArrayList<>();
         if (fanfic.getRating() != null) parts.add("Rated: " + fanfic.getRating());
@@ -111,15 +149,13 @@ public class PdfGeneratorService {
      */
     private static class PageCursor {
         private final PDDocument document;
-        private final PDFont regularFont;
-        private final PDFont boldFont;
+        private final PdfFontChain regularFont;
         private PDPageContentStream stream;
         private float y;
 
-        PageCursor(PDDocument document, PDFont regularFont, PDFont boldFont) {
+        PageCursor(PDDocument document, PdfFontChain regularFont) {
             this.document = document;
             this.regularFont = regularFont;
-            this.boldFont = boldFont;
         }
 
         void newPage() throws IOException {
@@ -141,16 +177,18 @@ public class PdfGeneratorService {
             writeParagraph(text, 9f, regularFont, 12f);
         }
 
-        void writeParagraph(String text, float fontSize, PDFont font, float leading) throws IOException {
+        void writeParagraph(String text, float fontSize, PdfFontChain font, float leading) throws IOException {
             if (text == null || text.isBlank()) {
                 return;
             }
             for (String line : wrap(text, font, fontSize, USABLE_WIDTH)) {
                 ensureSpace(leading);
                 stream.beginText();
-                stream.setFont(font, fontSize);
                 stream.newLineAtOffset(MARGIN, y);
-                stream.showText(sanitizeForPdf(line));
+                for (PdfFontChain.Run run : font.toRuns(line)) {
+                    stream.setFont(run.font(), fontSize);
+                    stream.showText(run.text());
+                }
                 stream.endText();
                 y -= leading;
             }
@@ -168,35 +206,45 @@ public class PdfGeneratorService {
             }
         }
 
-        private List<String> wrap(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+        /** Wraps on spaces, and inside words too long for a line, which covers CJK text without spaces. */
+        private List<String> wrap(String text, PdfFontChain font, float fontSize, float maxWidth) throws IOException {
             List<String> lines = new ArrayList<>();
-            for (String rawLine : text.split("\n")) {
-                StringBuilder current = new StringBuilder();
-                for (String word : rawLine.split(" ")) {
-                    String candidate = current.isEmpty() ? word : current + " " + word;
-                    if (width(candidate, font, fontSize) > maxWidth && !current.isEmpty()) {
-                        lines.add(current.toString());
-                        current = new StringBuilder(word);
-                    } else {
-                        current = new StringBuilder(candidate);
-                    }
+            StringBuilder line = new StringBuilder();
+            float lineWidth = 0;
+            float spaceWidth = font.width(' ', fontSize);
+
+            for (String word : text.strip().split("\\s+")) {
+                float wordWidth = font.width(word, fontSize);
+                if (!line.isEmpty() && lineWidth + spaceWidth + wordWidth <= maxWidth) {
+                    line.append(' ').append(word);
+                    lineWidth += spaceWidth + wordWidth;
+                    continue;
                 }
-                lines.add(current.toString());
+                if (!line.isEmpty()) {
+                    lines.add(line.toString());
+                    line.setLength(0);
+                    lineWidth = 0;
+                }
+                if (wordWidth <= maxWidth) {
+                    line.append(word);
+                    lineWidth = wordWidth;
+                    continue;
+                }
+                for (int codePoint : word.codePoints().toArray()) {
+                    float charWidth = font.width(codePoint, fontSize);
+                    if (lineWidth + charWidth > maxWidth && !line.isEmpty()) {
+                        lines.add(line.toString());
+                        line.setLength(0);
+                        lineWidth = 0;
+                    }
+                    line.appendCodePoint(codePoint);
+                    lineWidth += charWidth;
+                }
+            }
+            if (!line.isEmpty()) {
+                lines.add(line.toString());
             }
             return lines;
-        }
-
-        private float width(String text, PDFont font, float fontSize) throws IOException {
-            return font.getStringWidth(sanitizeForPdf(text)) / 1000 * fontSize;
-        }
-
-        /** Standard14 fonts only support WinAnsi-ish characters; drop anything else safely. */
-        private String sanitizeForPdf(String text) {
-            StringBuilder sb = new StringBuilder(text.length());
-            for (char c : text.toCharArray()) {
-                sb.append(c < 256 ? c : '?');
-            }
-            return sb.toString();
         }
     }
 }

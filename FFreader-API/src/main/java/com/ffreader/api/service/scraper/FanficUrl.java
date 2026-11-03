@@ -1,6 +1,6 @@
 package com.ffreader.api.service.scraper;
 
-import com.ffreader.api.exception.FanficScrapeException;
+import com.ffreader.api.exception.InvalidFanficUrlException;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,10 +18,15 @@ public record FanficUrl(String storyId, int chapter, String titleSlug) {
     public static FanficUrl parse(String url) {
         Matcher m = PATTERN.matcher(url.trim());
         if (!m.matches()) {
-            throw new FanficScrapeException("Not a recognizable fanfiction.net story URL: " + url);
+            throw new InvalidFanficUrlException(url);
         }
         String storyId = m.group(1);
-        int chapter = m.group(2) != null ? Integer.parseInt(m.group(2)) : 1;
+        int chapter;
+        try {
+            chapter = m.group(2) != null ? Integer.parseInt(m.group(2)) : 1;
+        } catch (NumberFormatException e) {
+            throw new InvalidFanficUrlException(url);
+        }
         String slug = m.group(3) != null && !m.group(3).isBlank() ? m.group(3) : "story";
         return new FanficUrl(storyId, chapter, slug);
     }

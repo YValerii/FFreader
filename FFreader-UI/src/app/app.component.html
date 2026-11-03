@@ -18,7 +18,9 @@
                  [disabled]="submitting" required>
         </mat-form-field>
         <button mat-raised-button color="primary" type="submit" [disabled]="submitting || !urlInput.trim()">
-          <mat-icon *ngIf="!submitting">add</mat-icon>
+          @if (!submitting) {
+            <mat-icon>add</mat-icon>
+          }
           {{ submitting ? 'Queuing…' : 'Add fanfic' }}
         </button>
       </form>

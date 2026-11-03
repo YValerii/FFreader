@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -21,6 +21,7 @@ const POLL_INTERVAL_MS = 4000;
 @Component({
   selector: 'app-root',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [
     CommonModule,
     FormsModule,
@@ -36,7 +37,7 @@ const POLL_INTERVAL_MS = 4000;
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   urlInput = '';
   submitting = false;
   loadingList = false;
@@ -116,7 +117,7 @@ export class AppComponent implements OnInit {
         this.snackBar.open('Fanfic deleted', 'Dismiss', { duration: 3000 });
         this.loadPage();
       },
-      error: () => this.snackBar.open('Could not delete fanfic', 'Dismiss', { duration: 3000 })
+      error: (err) => this.snackBar.open(err?.error?.message || 'Could not delete fanfic', 'Dismiss', { duration: 5000 })
     });
   }
 

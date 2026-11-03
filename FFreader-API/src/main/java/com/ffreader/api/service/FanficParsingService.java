@@ -3,6 +3,7 @@ package com.ffreader.api.service;
 import com.ffreader.api.domain.Chapter;
 import com.ffreader.api.domain.Fanfic;
 import com.ffreader.api.domain.FanficStatus;
+import com.ffreader.api.exception.FanficScrapeException;
 import com.ffreader.api.repository.ChapterRepository;
 import com.ffreader.api.repository.FanficRepository;
 import com.ffreader.api.service.pdf.PdfGeneratorService;
@@ -12,13 +13,20 @@ import com.ffreader.api.service.scraper.ScrapedChapter;
 import com.ffreader.api.service.scraper.ScrapedFanficInfo;
 import com.ffreader.api.service.scraper.WebDriverFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.WebDriver;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * Runs the whole "scrape -> persist chapters -> render PDF" pipeline for one
@@ -37,6 +45,7 @@ public class FanficParsingService {
     private final WebDriverFactory webDriverFactory;
     private final ExtractionFileService extractionFileService;
     private final PdfGeneratorService pdfGeneratorService;
+    private final Set<UUID> activeJobs = ConcurrentHashMap.newKeySet();
 
     public FanficParsingService(FanficRepository fanficRepository,
                                 ChapterRepository chapterRepository,
@@ -52,8 +61,30 @@ public class FanficParsingService {
         this.pdfGeneratorService = pdfGeneratorService;
     }
 
+    /**
+     * Reserves the fanfic for a new parse job.
+     *
+     * @return false if a job for this fanfic is already queued or running
+     */
+    public boolean tryReserve(UUID fanficId) {
+        return activeJobs.add(fanficId);
+    }
+
+    /** Gives up a reservation whose job could not be submitted. */
+    public void release(UUID fanficId) {
+        activeJobs.remove(fanficId);
+    }
+
     @Async("fanficTaskExecutor")
     public void parseAsync(UUID fanficId) {
+        try {
+            parse(fanficId);
+        } finally {
+            release(fanficId);
+        }
+    }
+
+    private void parse(UUID fanficId) {
         Fanfic fanfic = fanficRepository.findById(fanficId).orElse(null);
         if (fanfic == null) {
             log.warn("Fanfic {} disappeared before parsing could start", fanficId);
@@ -68,16 +99,21 @@ public class FanficParsingService {
         String errorMessage = null;
 
         try {
+            clearPreviousResults(fanfic);
+
             FanficUrl url = FanficUrl.parse(fanfic.getSourceUrl());
 
             // Step 1: story metadata (rating, description, chapter count, etc.)
-            ScrapedFanficInfo info = scraperService.fetchInfo(webDriverFactory.newDriver(), url);
+            ScrapedFanficInfo info = withDriver(driver -> scraperService.fetchInfo(driver, url));
             applyInfo(fanfic, info);
             fanfic = fanficRepository.save(fanfic);
 
             // Step 2: walk every chapter, saving each to a temp extraction file + DB row
             UUID extractionRunId = UUID.randomUUID();
             chapterCount = info.chaptersCount() != null ? info.chaptersCount() : 1;
+            if (chapterCount < 1) {
+                throw new FanficScrapeException("The story page reported no chapters");
+            }
 
             int chapterNumber = 1;
             int consecutiveErrors = 0;
@@ -85,7 +121,9 @@ public class FanficParsingService {
             // Using a while loop to control exactly when we advance to the next chapter
             while (chapterNumber <= chapterCount) {
                 try {
-                    ScrapedChapter scraped = scraperService.fetchChapterContent(webDriverFactory.newDriver(), url, chapterNumber);
+                    int currentChapter = chapterNumber;
+                    ScrapedChapter scraped = withDriver(driver ->
+                            scraperService.fetchChapterContent(driver, url, currentChapter));
 
                     String fileName = extractionFileService.writeChapter(
                             extractionRunId, info.title(), chapterNumber, scraped.rawHtml());
@@ -146,6 +184,35 @@ public class FanficParsingService {
                 markStatus(fanfic, FanficStatus.FAILED, errorMessage);
             }
         }
+    }
+
+    /** Runs one page load in its own browser, which is always closed afterwards. */
+    private <T> T withDriver(Function<WebDriver, T> work) {
+        WebDriver driver = webDriverFactory.newDriver();
+        try {
+            return work.apply(driver);
+        } finally {
+            try {
+                driver.quit();
+            } catch (Exception e) {
+                log.warn("Could not close browser: {}", e.getMessage());
+            }
+        }
+    }
+
+    /** A re-submitted story starts again from nothing, so its new chapters don't clash with the old ones. */
+    private void clearPreviousResults(Fanfic fanfic) throws IOException {
+        List<Chapter> previous = chapterRepository.findByFanficIdOrderByChapterNumberAsc(fanfic.getId());
+        for (Chapter chapter : previous) {
+            extractionFileService.deleteChapter(chapter.getExtractionFileName());
+        }
+        chapterRepository.deleteAllInBatch(previous);
+
+        if (fanfic.getPdfPath() != null) {
+            Files.deleteIfExists(Path.of(fanfic.getPdfPath()));
+            fanfic.setPdfPath(null);
+        }
+        fanfic.setLoadedChaptersCount(null);
     }
 
     private void applyInfo(Fanfic fanfic, ScrapedFanficInfo info) {

@@ -34,6 +34,9 @@ public class HtmlToTextConverter {
                     String text = textNode.text();
                     if (!text.isBlank()) {
                         sb.append(text);
+                    } else if (!text.isEmpty() && !sb.isEmpty() && !Character.isWhitespace(sb.charAt(sb.length() - 1))) {
+                        // Whitespace between inline tags still separates words: <b>Hello</b> <i>world</i>
+                        sb.append(' ');
                     }
                 } else if (node instanceof Element el && el.tagName().equals("br")) {
                     sb.append('\n');

@@ -1,0 +1,66 @@
+# Starts the whole application: docker compose up --build -d
+# Then open http://localhost:8081 (change the port with FFREADER_PORT).
+# For local development, start only the database: docker compose up -d postgres
+name: ffreader
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ffreader
+      POSTGRES_USER: ffreader
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ffreader}
+    ports:
+      # This machine only: the API and tests run outside Docker during local development.
+      - "127.0.0.1:${FFREADER_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ffreader -d ffreader"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./FFreader-API
+    # Google publishes Chrome for Linux on amd64 only.
+    platform: linux/amd64
+    restart: unless-stopped
+    # Reaps the browser processes Chrome leaves to PID 1.
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ffreader
+      SPRING_DATASOURCE_USERNAME: ffreader
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ffreader}
+      FFREADER_STORAGE_EXTRACTIONDIR: /data/extractions
+      FFREADER_STORAGE_PDFDIR: /data/pdfs
+    volumes:
+      - apidata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/fanfics?size=1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  ui:
+    build: ./FFreader-UI
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${FFREADER_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  apidata:

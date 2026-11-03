@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,6 +23,15 @@ import java.util.regex.Pattern;
 public class FanficPageParser {
 
     private static final Pattern NUMBER = Pattern.compile("[0-9,]+");
+
+    private static final String GENRE_NAMES = "Adventure|Angst|Crime|Drama|Family|Fantasy|Friendship|General|Horror"
+            + "|Humor|Hurt/Comfort|Mystery|Parody|Poetry|Romance|Sci-Fi|Spiritual|Supernatural|Suspense|Tragedy|Western";
+
+    /** The site's fixed genres, alone or combined, e.g. "Romance/Hurt/Comfort". */
+    private static final Pattern GENRES = Pattern.compile("(?:" + GENRE_NAMES + ")(?:/(?:" + GENRE_NAMES + "))*");
+
+    private static final List<String> FIELD_LABELS = List.of(
+            "Chapters:", "Words:", "Reviews:", "Favs:", "Follows:", "Updated:", "Published:", "Status:", "id:");
 
     /**
      * Parses the metadata block, e.g.:
@@ -64,18 +75,22 @@ public class FanficPageParser {
         // Language is always the token right after "Rated: ...".
         String language = tokenAfterPrefix(tokens, "Rated:");
 
-        // Genre / characters sit between language and "Chapters:" (order: Rated, Language, Genre, Characters).
+        // Genre and characters are both optional and sit between language and the first labelled field.
         String genre = null;
         String characters = null;
         int ratedIdx = indexOfPrefix(tokens, "Rated:");
-        int chaptersIdx = indexOfPrefix(tokens, "Chapters:");
-        if (ratedIdx >= 0 && chaptersIdx > ratedIdx + 1) {
-            List<String> between = tokens.subList(ratedIdx + 2, chaptersIdx);
-            if (!between.isEmpty()) {
-                genre = between.get(0);
-            }
-            if (between.size() > 1) {
-                characters = String.join(" - ", between.subList(1, between.size()));
+        if (ratedIdx >= 0) {
+            int start = ratedIdx + 2;
+            int end = firstLabelledField(tokens, start);
+            if (start < end) {
+                List<String> between = tokens.subList(start, end);
+                if (GENRES.matcher(between.getFirst()).matches()) {
+                    genre = between.getFirst();
+                    between = between.subList(1, between.size());
+                }
+                if (!between.isEmpty()) {
+                    characters = String.join(" - ", between);
+                }
             }
         }
 
@@ -89,10 +104,20 @@ public class FanficPageParser {
         );
     }
 
-    /** Reads the chapter dropdown (if present) to double check the chapter count. */
+    /**
+     * Reads the chapter dropdown (if present) to double check the chapter count.
+     * Pages can repeat the dropdown above and below the story, so options are counted by distinct chapter.
+     */
     public int parseChapterCountFromSelect(Document doc, int fallback) {
         Elements options = doc.select("#chap_select option");
-        return options.isEmpty() ? fallback : options.size()/2;
+        if (options.isEmpty()) {
+            return fallback;
+        }
+        Set<String> chapters = new HashSet<>();
+        for (Element option : options) {
+            chapters.add(option.hasAttr("value") ? option.attr("value") : option.text());
+        }
+        return chapters.size();
     }
 
     /** Extracts the raw HTML of the story body for the currently loaded chapter. */
@@ -150,6 +175,16 @@ public class FanficPageParser {
             }
         }
         return -1;
+    }
+
+    private int firstLabelledField(List<String> tokens, int from) {
+        for (int i = from; i < tokens.size(); i++) {
+            String token = tokens.get(i);
+            if (FIELD_LABELS.stream().anyMatch(token::startsWith)) {
+                return i;
+            }
+        }
+        return tokens.size();
     }
 
     private String tokenAfterPrefix(List<String> tokens, String prefix) {

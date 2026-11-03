@@ -6,9 +6,11 @@
       <td mat-cell *matCellDef="let f">
         <div class="title-cell">
           <span class="title-text" [matTooltip]="f.description || ''">{{ f.title || f.sourceUrl }}</span>
-          <span class="subtitle" *ngIf="f.rating || f.genre">
-            {{ f.rating }}<span *ngIf="f.rating && f.genre"> · </span>{{ f.genre }}
-          </span>
+          @if (f.rating || f.genre) {
+            <span class="subtitle">
+              {{ f.rating }}@if (f.rating && f.genre) {<span> · </span>}{{ f.genre }}
+            </span>
+          }
         </div>
       </td>
     </ng-container>
@@ -18,7 +20,9 @@
       <td mat-cell *matCellDef="let f">
         <mat-chip-set>
           <mat-chip [color]="statusColor(f.status)" [highlighted]="true" [matTooltip]="f.errorMessage || ''">
-            <mat-spinner *ngIf="isBusy(f)" diameter="14" class="status-spinner"></mat-spinner>
+            @if (isBusy(f)) {
+              <mat-spinner diameter="14" class="status-spinner"></mat-spinner>
+            }
             {{ f.status }}
           </mat-chip>
         </mat-chip-set>
@@ -57,10 +61,12 @@
     <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
   </table>
 
-  <div class="empty-state" *ngIf="!loading && fanfics.length === 0">
-    <mat-icon>menu_book</mat-icon>
-    <p>No fanfics loaded yet. Paste a fanfiction.net link above to get started.</p>
-  </div>
+  @if (!loading && fanfics.length === 0) {
+    <div class="empty-state">
+      <mat-icon>menu_book</mat-icon>
+      <p>No fanfics loaded yet. Paste a fanfiction.net link above to get started.</p>
+    </div>
+  }
 
   <mat-paginator
     [length]="totalElements"

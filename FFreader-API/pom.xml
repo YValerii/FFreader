@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -18,18 +18,19 @@
     <description>Async fanfiction.net scraper, storage and PDF export API</description>
 
     <properties>
-        <java.version>21</java.version>
-        <selenium.version>4.50.0</selenium.version>
-        <webdrivermanager.version>5.9.2</webdrivermanager.version>
-        <jsoup.version>1.18.1</jsoup.version>
-        <pdfbox.version>3.0.3</pdfbox.version>
+        <java.version>25</java.version>
+        <maven.compiler.proc>full</maven.compiler.proc>
+        <selenium.version>4.52.0</selenium.version>
+        <webdrivermanager.version>6.4.0</webdrivermanager.version>
+        <jsoup.version>1.24.1</jsoup.version>
+        <pdfbox.version>3.0.8</pdfbox.version>
     </properties>
 
     <dependencies>
         <!-- Web / REST -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
         <!-- Validation -->
@@ -51,8 +52,8 @@
 
         <!-- Flyway migrations -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

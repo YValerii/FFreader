@@ -1,6 +1,8 @@
 # FFreader-API
 
-Spring Boot 3 / Java 21 service that:
+See the [root README](../README.md) for the full guide, including tests and known limitations.
+
+Spring Boot 4 / Java 25 service that:
 
 1. Accepts a fanfiction.net story URL (e.g. `https://www.fanfiction.net/s/14585136/1/For-Her`) via an **async** REST endpoint.
 2. Uses a headless Selenium Chrome browser to load the page and extract:
@@ -15,22 +17,21 @@ Spring Boot 3 / Java 21 service that:
 7. Converts the extracted HTML into clean plain text and assembles a single, readable PDF per story.
 8. Exposes a paginated list endpoint for all loaded fanfics.
 9. Exposes a download endpoint for the generated PDF.
-10. Tracks status per fanfic: `PENDING -> PARSING -> PARSED` (or `FAILED`).
+10. Tracks status per fanfic: `PENDING -> PARSING -> PARSED` (or `PARSED_PARTIALLY` / `FAILED`).
 11. Parsing runs on a dedicated thread pool (`AsyncConfig`) so multiple fanfics parse in parallel.
 12. Delete endpoint removes the fanfic row, its chapters, extraction files and generated PDF.
 
 ## Requirements
 
-- Java 21
-- Maven 3.9+
-- PostgreSQL 16 (or `docker compose up -d` using the included `docker-compose.yml`)
+- Java 25
+- PostgreSQL 18 (or `docker compose up -d postgres` from the repository root)
 - Google Chrome installed locally (WebDriverManager downloads the matching driver automatically)
 
 ## Running
 
 ```bash
-docker compose up -d          # starts Postgres on localhost:5432
-mvn spring-boot:run           # starts the API on localhost:8080
+docker compose up -d postgres # from the repository root; starts Postgres on localhost:5432
+./mvnw spring-boot:run        # starts the API on localhost:8080
 ```
 
 ## Endpoints
