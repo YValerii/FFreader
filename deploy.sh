@@ -1,12 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Installs dependencies, builds the API and UI, and restarts all containers.
 # Stories and PDFs are kept: the Docker volumes are never removed.
-set -euo pipefail
+set -eu
 
 usage() {
     cat <<'EOF'
-Usage: bash deploy.sh [--local] [--help]
+Usage: sh deploy.sh [--local] [--help]
 
 Builds both images, which installs dependencies and compiles inside Docker with
 the pinned JDK and Node versions, then restarts the containers. Only Docker is
@@ -37,19 +37,25 @@ step() {
 require() {
     if ! command -v "$1" >/dev/null 2>&1; then
         echo "Error: $1 is not installed or not on PATH." >&2
+        if [ "$1" = docker ]; then
+            echo "Install it from https://docs.docker.com/engine/install/" >&2
+        fi
         exit 1
     fi
 }
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "$0")"
 
 require docker
 if ! docker compose version >/dev/null 2>&1; then
     echo "Error: the Docker Compose plugin is not available." >&2
+    echo "Install it from https://docs.docker.com/compose/install/linux/" >&2
     exit 1
 fi
 if ! docker info >/dev/null 2>&1; then
-    echo "Error: cannot reach the Docker daemon. Is Docker running?" >&2
+    echo "Error: cannot reach the Docker daemon. Either it isn't running, or your user" >&2
+    echo "may not use it. On Linux, try: sudo systemctl enable --now docker" >&2
+    echo "and: sudo usermod -aG docker \"\$USER\" (then log out and back in)." >&2
     exit 1
 fi
 
@@ -76,5 +82,16 @@ docker compose up -d --force-recreate --remove-orphans --wait --wait-timeout 300
 
 step "Done"
 docker compose ps
+
+port="${FFREADER_PORT:-}"
+if [ -z "$port" ] && [ -f .env ]; then
+    port="$(sed -n 's/^FFREADER_PORT=//p' .env | tail -n 1)"
+fi
+port="${port:-8081}"
+
 echo
-echo "Open http://localhost:${FFREADER_PORT:-$(sed -n 's/^FFREADER_PORT=//p' .env 2>/dev/null | tail -n 1 | grep . || echo 8081)}"
+echo "Open http://localhost:$port"
+network_ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || network_ip=""
+if [ -n "$network_ip" ]; then
+    echo "From another device: http://$network_ip:$port"
+fi

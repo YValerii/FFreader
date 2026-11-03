@@ -45,18 +45,20 @@ story is still being parsed, the request returns its current state and no second
 
 ## Quick start with Docker
 
-The only requirement is Docker. From the repository root:
+The only requirement is Docker with the Compose plugin. One command clones, builds and starts it:
 
 ```bash
-docker compose up --build -d
+git clone https://github.com/YValerii/FFreader.git && cd FFreader && sh deploy.sh
 ```
 
 Then open <http://localhost:8081>. The first build takes a few minutes.
 
-To install dependencies, rebuild everything and restart the containers in one step, run
-`bash deploy.sh`. Add `--local` to also build on your machine and run the API unit tests, which needs
-JDK 25 and a supported Node version. Stories and PDFs are kept, but a restart interrupts any story
-that is being parsed.
+Run `sh deploy.sh` again to rebuild everything and restart the containers. Stories and PDFs are kept,
+but a restart interrupts any story that is being parsed. Add `--local` to also build on your machine
+and run the API unit tests, which needs JDK 25 and a supported Node version.
+
+If the project is already cloned, `docker compose up --build -d` from the repository root also starts
+it.
 
 Compose starts PostgreSQL, then the API once the database is healthy, then the UI once the API is
 healthy. The UI serves the app through nginx and forwards `/api` to the API. PostgreSQL is also
